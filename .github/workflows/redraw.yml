@@ -1,0 +1,36 @@
+name: Redraw comic profile
+
+on:
+  schedule:
+    - cron: '23 1 * * *' # daily, 08:23 Vietnam time
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['profile.config.mjs', 'scripts/**', 'fonts/**', 'package*.json', '.github/workflows/redraw.yml']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: redraw
+  cancel-in-progress: false
+
+jobs:
+  redraw:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit redrawn panels
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets data
+          git diff --cached --quiet || { git commit -m 'chore: redraw comic panels' && git push; }
